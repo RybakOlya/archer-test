@@ -1,0 +1,101 @@
+<?php
+
+/**
+ * @file
+ * Custom module for Archer's test Batch task.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function archer_test_batch_menu() {
+  return [
+    'admin/test' => [
+      'title' => 'Archer test',
+      'description' => 'Menu for queue and batch tasks',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => ['archer_test_batch_update_dates_admin_config_form'],
+      'access arguments' => ['update changed dates'],
+      'file' => 'includes/archer_test_batch.admin.inc',
+    ],
+    'admin/test/batch' => [
+      'title' => 'Update changed dates',
+      'description' => 'Config form for updating all changed dates',
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+    ],
+  ];
+}
+
+/**
+ * Implements hook_permission().
+ */
+function archer_test_batch_permission() {
+  return [
+    'update changed dates' => [
+      'title' => t('Update nodes changed date'),
+    ],
+  ];
+}
+
+/**
+ * Batch definition.
+ *
+ * @param string $new_date
+ *   Timestamp. Will be set as "changed" date for all nodes.
+ * @param int $batch_size
+ *   Amount of nodes that will be processed during one batch iteration.
+ *
+ * @return array
+ *   Batch array.
+ */
+function archer_test_batch_batch($new_date, $batch_size = 100) {
+  $nids = db_select('node', 'n')
+    ->fields('n', ['nid'])
+    ->execute()
+    ->fetchCol();
+  $chunks = array_chunk($nids, $batch_size);
+  if (!empty($chunks)) {
+    $operations = [];
+    foreach ($chunks as $chunk) {
+      $operations[] = ['archer_test_batch_batch_update_changed_date', [$new_date, $chunk]];
+    }
+  }
+  
+  $batch = [
+    'title' => t('Update "changed" dates for all nodes'),
+    'operations' => $operations,
+    'finished' => 'archer_test_batch_batch_finished',
+    'init_message' => t('Batch is starting...'),
+    'progress_message' => t('Updated @current out of @total.'),
+    'error_message' => t('Batch has encountered an error.'),
+  ];
+
+  return $batch;
+}
+
+/**
+ * Batch operation function. Update "changed" dates for all nodes.
+ *
+ * @param string $new_date
+ *   Timestamp. Will be set as "changed" date for all nodes.
+ * @param array $nids
+ *   Array of node ids.
+ */
+function archer_test_batch_batch_update_changed_date($new_date, array $nids) {
+  db_update('node')
+    ->fields(['changed' => $new_date])
+    ->condition('nid', $nids, 'IN')
+    ->execute();
+}
+
+/**
+ * Batch finished callback.
+ */
+function archer_test_batch_batch_finished($success, $results, $operations) {
+  if ($success) {
+    drupal_set_message(t('Batch successfully finished'));
+  }
+  else {
+    drupal_set_message(t('Batch has encountered an error'), 'error');
+  }
+}

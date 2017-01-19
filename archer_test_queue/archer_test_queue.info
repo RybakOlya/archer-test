@@ -1,0 +1,4 @@
+name = Archer test Queue
+description = Custom module for Archer's test Queue task
+core = 7.x
+package = Archer

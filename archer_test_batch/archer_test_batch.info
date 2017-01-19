@@ -1,0 +1,4 @@
+name = Archer test Batch
+description = Custom module for Archer's test Batch task
+core = 7.x
+package = Archer

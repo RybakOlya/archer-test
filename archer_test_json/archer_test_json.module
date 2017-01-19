@@ -1,0 +1,93 @@
+<?php
+
+/**
+ * @file
+ * Custom module for Archer's test JSON task.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function archer_test_json_menu() {
+  return [
+    'api/v1/node/%node' => [
+      'page callback' => 'archer_test_json_node_endpoint',
+      'page arguments' => [3],
+      'access arguments' => ['access custom json'],
+    ],
+    'api/v1/node/%node/comments' => [
+      'page callback' => 'archer_test_json_node_comments_endpoint',
+      'page arguments' => [3],
+      'access arguments' => ['access custom json'],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_permission().
+ */
+function archer_test_json_permission() {
+  return [
+    'access custom json' => [
+      'title' => t('Access custom JSON'),
+    ],
+  ];
+}
+
+/**
+ * Callback for node endpoint.
+ *
+ * @param stdClass $node
+ *   Rendered node object.
+ */
+function archer_test_json_node_endpoint($node) {
+  // Rid off the unnecessary info, leave just field values and node main info.
+  $formatted_node = new stdClass();
+  $node_info = [
+    'uid',
+    'title',
+    'status',
+    'nid',
+    'type',
+    'language',
+    'created',
+    'changed',
+  ];
+  $node_fields = array_keys(field_info_instances('node', $node->type));
+  $node_info = array_merge($node_info, $node_fields);
+
+  foreach ($node_info as $info) {
+    $formatted_node->{$info} = $node->{$info};
+  }
+
+  drupal_add_http_header('Content-Type', 'application/json');
+  print json_encode($formatted_node, JSON_PRETTY_PRINT);
+}
+
+/**
+ * Callback for node comments endpoint.
+ *
+ * @param stdClass $node
+ *   Rendered node object.
+ */
+function archer_test_json_node_comments_endpoint($node) {
+  $comment_ids = comment_get_thread($node, COMMENT_MODE_THREADED, 1000);
+  if (!empty($comment_ids)) {
+    $comments = comment_load_multiple($comment_ids);
+
+    // We have the same fields for all comments.
+    $dummy_comment = reset($comments);
+    $comment_fields = array_keys(field_info_instances('comment', $dummy_comment->node_type));
+    // Rid off the unnecessary comment info.
+    foreach ($comments as $cid => $comment) {
+      foreach ($comments[$cid] as $key => $value) {
+        if (is_array($value) && !in_array($key, $comment_fields)) {
+          unset($comments[$cid]->{$key});
+        }
+      }
+    }
+
+    drupal_add_http_header('Content-Type', 'application/json');
+    print json_encode($comments, JSON_PRETTY_PRINT);
+  }
+}

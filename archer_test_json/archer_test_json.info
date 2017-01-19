@@ -1,0 +1,4 @@
+name = Archer test JSON
+description = Custom module for Archer's test JSON task
+core = 7.x
+package = Archer

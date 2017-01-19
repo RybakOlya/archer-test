@@ -1,0 +1,60 @@
+<?php
+
+/**
+ * @file
+ * Custom module for Archer's test Queue task.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function archer_test_queue_menu() {
+  return [
+    'admin/test/queue' => [
+      'title' => 'Remove old nodes',
+      'description' => 'Remove nodes older than 10 days from the system',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => ['archer_test_queue_remove_old_nodes_admin_config_form'],
+      'access arguments' => ['remove old nodes'],
+      'file' => 'includes/archer_test_queue.admin.inc',
+      'type' => MENU_LOCAL_TASK,
+      'weight' => 5,
+    ],
+  ];
+}
+
+/**
+ * Implements hook_permission().
+ */
+function archer_test_queue_permission() {
+  return [
+    'remove old nodes' => [
+      'title' => t('Remove'),
+    ],
+  ];
+}
+
+/**
+ * Implements hook_cron_queue_info().
+ */
+function archer_test_queue_cron_queue_info() {
+  $queues['archer_test_queue_delete_old_nodes'] = [
+    'worker callback' => 'archer_test_queue_delete_old_nodes_queue_worker',
+    'time' => 100,
+  ];
+
+  return $queues;
+}
+
+/**
+ * Queue worker function.
+ */
+function archer_test_queue_delete_old_nodes_queue_worker($data) {
+  $queue = DrupalQueue::get('archer_test_queue_delete_old_nodes');
+  $queue->createQueue();
+  $count = $queue->numberOfItems();
+  node_delete($data);
+  if ($count == 0) {
+    $queue->deleteQueue();
+  }
+}
